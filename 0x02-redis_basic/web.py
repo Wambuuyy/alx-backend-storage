@@ -1,32 +1,36 @@
 #!/usr/bin/env python3
 """
-Web cache and tracker
+Caching request module
 """
-
 import redis
 import requests
+from functools import wraps
 from typing import Callable
 
-class WebCache:
-    def __init__(self):
-        self._redis = redis.Redis()
-    
-    def get_page(self, url: str) -> str:
-        """
-        Get the HTML content of a URL and cache it.
-        """
-        key = f"count:{url}"
-        self._redis.incr(key)
-        
-        cached_data = self._redis.get(url)
-        if cached_data:
-            return cached_data.decode('utf-8')
-        
-        response = requests.get(url)
-        self._redis.setex(url, 10, response.text)
-        return response.text
 
-if __name__ == "__main__":
-    web_cache = WebCache()
-    url = "http://slowwly.robertomurray.co.uk"
-    print(web_cache.get_page(url))
+def track_get_page(fn: Callable) -> Callable:
+    """ Decorator for get_page
+    """
+    @wraps(fn)
+    def wrapper(url: str) -> str:
+        """ Wrapper that:
+            - check whether a url's data is cached
+            - tracks how many times get_page is called
+        """
+        client = redis.Redis()
+        client.incr(f'count:{url}')
+        cached_page = client.get(f'{url}')
+        if cached_page:
+            return cached_page.decode('utf-8')
+        response = fn(url)
+        client.set(f'{url}', response, 10)
+        return response
+    return wrapper
+
+
+@track_get_page
+def get_page(url: str) -> str:
+    """ Makes a http request to a given endpoint
+    """
+    response = requests.get(url)
+    return response.text
