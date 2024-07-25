@@ -1,45 +1,30 @@
 #!/usr/bin/env python3
-"""
-Aggregation operations
-"""
+'''Task 12's module.
+'''
 from pymongo import MongoClient
-from typing import Tuple
 
 
-def get_nginx_stats() -> Tuple:
-    """
-    Queries nginx collection for specific data
-    - Returns:
-        - count of all documents
-        - count of each method in the collection
-        - count of each GET calls to /status path
-    """
-    client: MongoClient = MongoClient()
-    db = client.logs
-    collection = db.nginx
-    methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-    method_stats = []
-    for method in methods:
-        method_count = collection.count_documents({'method': method})
-        method_stats.append({'method': method, 'count': method_count})
-    doc_count = collection.estimated_document_count()
-    status_path_stats = collection.count_documents({'method': 'GET',
-                                                    'path': '/status'})
-    client.close()
-    return doc_count, method_stats, status_path_stats
-
-
-def print_nginx_stats() -> None:
-    """
-    Prints stats from nginx query
-    """
-    doc_count, method_stats, status_path_stats = get_nginx_stats()
-    print(f'{doc_count} logs')
+def print_nginx_request_logs(nginx_collection):
+    '''Prints stats about Nginx request logs.
+    '''
+    print('{} logs'.format(nginx_collection.count_documents({})))
     print('Methods:')
-    for method in method_stats:
-        print(f'\tmethod {method.get("method")}: {method.get("count")}')
-    print(f'{status_path_stats} status check')
+    methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    for method in methods:
+        req_count = len(list(nginx_collection.find({'method': method})))
+        print('\tmethod {}: {}'.format(method, req_count))
+    status_checks_count = len(list(
+        nginx_collection.find({'method': 'GET', 'path': '/status'})
+    ))
+    print('{} status check'.format(status_checks_count))
+
+
+def run():
+    '''Provides some stats about Nginx logs stored in MongoDB.
+    '''
+    client = MongoClient('mongodb://127.0.0.1:27017')
+    print_nginx_request_logs(client.logs.nginx)
 
 
 if __name__ == '__main__':
-    print_nginx_stats()
+    run()
