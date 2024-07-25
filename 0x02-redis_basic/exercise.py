@@ -94,4 +94,3 @@ class Cache:
         """ Converts bytes to integers
         """
         return int(data)
-    
